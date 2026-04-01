@@ -11,6 +11,7 @@ const navItems = [
   { href: '/images', label: 'مولد الصور', icon: '🎨', description: 'تصميم الشعارات والأغلفة' },
   { href: '/books', label: 'بحث الكتب', icon: '📚', description: 'معلومات الكتب والمؤلفين' },
   { href: '/tasks', label: 'إدارة المهام', icon: '📋', description: 'تنظيم أعمال النشر' },
+  { href: '/data-hub', label: 'مركز البيانات', icon: '🧠', description: 'تحليل وتلخيص البيانات' },
 ];
 
 export default function Sidebar() {

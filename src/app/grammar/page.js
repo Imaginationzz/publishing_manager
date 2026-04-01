@@ -1,5 +1,6 @@
 'use client';
 import { useState, useCallback } from 'react';
+import { addEntry } from '@/lib/dataStore';
 
 export default function GrammarPage() {
   const [text, setText] = useState('');
@@ -26,6 +27,12 @@ export default function GrammarPage() {
       if (!response.ok) throw new Error('API error');
       const data = await response.json();
       setResults(data);
+
+      // Push to Data Hub
+      addEntry('grammar', `تدقيق نص (${language === 'ar' ? 'العربية' : language})`, text, {
+        errorCount: data.matches?.length || 0,
+        language,
+      });
     } catch (err) {
       console.error('Grammar check error:', err);
       setResults({ error: true, message: 'حدث خطأ في الاتصال بالخادم. يرجى المحاولة لاحقاً.' });

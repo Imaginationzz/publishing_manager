@@ -1,5 +1,6 @@
 'use client';
 import { useState, useRef, useCallback } from 'react';
+import { addEntry } from '@/lib/dataStore';
 
 export default function PdfPage() {
   const [file, setFile] = useState(null);
@@ -43,7 +44,14 @@ export default function PdfPage() {
         fullText += `\n\n— الصفحة ${i} —\n\n${pageText}`;
       }
 
-      setExtractedText(fullText.trim());
+      const trimmedText = fullText.trim();
+      setExtractedText(trimmedText);
+
+      // Push to Data Hub
+      addEntry('pdf', selectedFile.name, trimmedText, {
+        pageCount: pdf.numPages,
+        fileSize: selectedFile.size,
+      });
     } catch (err) {
       console.error('PDF extraction error:', err);
       setExtractedText('حدث خطأ أثناء استخراج النص. يرجى المحاولة مرة أخرى.');

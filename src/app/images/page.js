@@ -1,5 +1,6 @@
 'use client';
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { addEntry } from '@/lib/dataStore';
 
 const TEMPLATES = [
   { name: 'غلاف كتاب', width: 600, height: 800, bg: '#1a1a2e' },
@@ -191,6 +192,21 @@ export default function ImagesPage() {
     const canvas = canvasRef.current;
     const dataUrl = canvas.toDataURL('image/png');
     setGallery(prev => [...prev, { src: dataUrl, date: new Date().toLocaleString('ar-SA') }]);
+
+    // Push to Data Hub (store small thumbnail)
+    const thumbCanvas = document.createElement('canvas');
+    thumbCanvas.width = 200;
+    thumbCanvas.height = Math.round(200 * (template.height / template.width));
+    const thumbCtx = thumbCanvas.getContext('2d');
+    thumbCtx.drawImage(canvas, 0, 0, thumbCanvas.width, thumbCanvas.height);
+    const thumbUrl = thumbCanvas.toDataURL('image/jpeg', 0.6);
+
+    addEntry('image', `تصميم — ${template.name}`, '', {
+      template: template.name,
+      dimensions: `${template.width}×${template.height}`,
+      elementCount: elements.length,
+      dataUrl: thumbUrl,
+    });
   };
 
   return (

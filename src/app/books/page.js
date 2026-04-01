@@ -1,5 +1,6 @@
 'use client';
 import { useState, useCallback } from 'react';
+import { addEntry } from '@/lib/dataStore';
 
 export default function BooksPage() {
   const [query, setQuery] = useState('');
@@ -39,6 +40,21 @@ export default function BooksPage() {
       if (exists) {
         return prev.filter(b => b.key !== book.key);
       }
+
+      // Push to Data Hub on bookmark
+      addEntry('book', book.title, [
+        book.subtitle,
+        book.author_name?.join('، '),
+        book.subject?.slice(0, 5).join('، '),
+      ].filter(Boolean).join(' — '), {
+        author: book.author_name?.join('، '),
+        year: book.first_publish_year,
+        isbn: book.isbn?.[0],
+        publisher: book.publisher?.slice(0, 2).join('، '),
+        pages: book.number_of_pages_median,
+        coverId: book.cover_i,
+      });
+
       return [...prev, book];
     });
   };

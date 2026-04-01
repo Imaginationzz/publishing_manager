@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { getStats } from '@/lib/dataStore';
 
 const modules = [
   {
@@ -48,21 +49,35 @@ const modules = [
     glow: 'hsla(200, 70%, 55%, 0.2)',
     gradient: 'linear-gradient(135deg, hsla(200, 70%, 55%, 0.15), hsla(200, 70%, 55%, 0.05))',
   },
+  {
+    href: '/data-hub',
+    icon: '🧠',
+    title: 'مركز البيانات',
+    description: 'تجميع وتحليل جميع بيانات دار النشر في مكان واحد مع إحصائيات ذكية',
+    color: 'hsl(330, 70%, 55%)',
+    glow: 'hsla(330, 70%, 55%, 0.2)',
+    gradient: 'linear-gradient(135deg, hsla(330, 70%, 55%, 0.15), hsla(330, 70%, 55%, 0.05))',
+  },
 ];
 
-const quickStats = [
-  { label: 'ملفات محولة', value: '0', icon: '📄', color: 'var(--color-primary)' },
-  { label: 'نصوص مدققة', value: '0', icon: '✏️', color: 'var(--color-success)' },
-  { label: 'صور مصممة', value: '0', icon: '🎨', color: 'var(--color-accent)' },
-  { label: 'كتب محفوظة', value: '0', icon: '📚', color: 'var(--color-gold)' },
-];
 
 export default function Dashboard() {
   const [mounted, setMounted] = useState(false);
+  const [liveStats, setLiveStats] = useState(null);
 
   useEffect(() => {
     setMounted(true);
+    try {
+      setLiveStats(getStats());
+    } catch {}
   }, []);
+
+  const quickStats = [
+    { label: 'ملفات محولة', value: liveStats?.byType?.pdf ?? '0', icon: '📄', color: 'var(--color-primary)' },
+    { label: 'نصوص مدققة', value: liveStats?.byType?.grammar ?? '0', icon: '✏️', color: 'var(--color-success)' },
+    { label: 'صور مصممة', value: liveStats?.byType?.image ?? '0', icon: '🎨', color: 'var(--color-accent)' },
+    { label: 'كتب محفوظة', value: liveStats?.byType?.book ?? '0', icon: '📚', color: 'var(--color-gold)' },
+  ];
 
   return (
     <div>
