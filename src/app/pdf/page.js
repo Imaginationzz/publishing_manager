@@ -26,10 +26,21 @@ export default function PdfPage() {
 
     try {
       const pdfjsLib = await import('pdfjs-dist');
-      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+      const version = pdfjsLib.version || '5.6.205';
+      
+      // Use a robust CDN URL for the worker
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.mjs`;
 
       const arrayBuffer = await selectedFile.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      
+      // Add CMap and Standard Font support for better Arabic text extraction
+      const pdf = await pdfjsLib.getDocument({
+        data: arrayBuffer,
+        cMapUrl: `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/cmaps/`,
+        cMapPacked: true,
+        standardFontDataUrl: `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/standard_fonts/`
+      }).promise;
+      
       setPageCount(pdf.numPages);
 
       let fullText = '';
@@ -39,12 +50,21 @@ export default function PdfPage() {
 
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
-        const pageText = textContent.items.map(item => item.str).join(' ');
+        
+        // Better join logic: handle potential missing spaces and RTL
+        const pageText = textContent.items
+          .map(item => item.str)
+          .join(' ')
+          .replace(/\s+/g, ' ');
 
         fullText += `\n\n— الصفحة ${i} —\n\n${pageText}`;
       }
 
       const trimmedText = fullText.trim();
+      if (!trimmedText) {
+        throw new Error('لم يتم العثور على نص قابل للاستخراج في هذا الملف');
+      }
+      
       setExtractedText(trimmedText);
 
       // Push to Data Hub
@@ -54,7 +74,12 @@ export default function PdfPage() {
       });
     } catch (err) {
       console.error('PDF extraction error:', err);
-      setExtractedText('حدث خطأ أثناء استخراج النص. يرجى المحاولة مرة أخرى.');
+      let errorMsg = 'حدث خطأ أثناء استخراج النص. ';
+      if (err.message?.includes('worker')) errorMsg += 'فشل تحميل معالج PDF.';
+      else if (err.message?.includes('Password')) errorMsg += 'هذا الملف محمي بكلمة مرور.';
+      else errorMsg += 'يرجى المحاولة مرة أخرى أو استخدام ملف آخر.';
+      
+      setExtractedText(errorMsg);
     } finally {
       setIsLoading(false);
     }
