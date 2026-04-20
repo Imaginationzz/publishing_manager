@@ -25,20 +25,29 @@ export default function PdfPage() {
     setProgress(0);
 
     try {
+      // 1. More robust import strategy for ESM
       const pdfjsLib = await import('pdfjs-dist');
-      const version = pdfjsLib.version || '5.6.205';
       
-      // Use a robust CDN URL for the worker
-      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.mjs`;
+      // Handle different export patterns (version 5 specific)
+      const version = pdfjsLib.version || '5.6.205';
+      const getDocument = pdfjsLib.getDocument;
+      const GlobalWorkerOptions = pdfjsLib.GlobalWorkerOptions;
+
+      if (!getDocument || !GlobalWorkerOptions) {
+        throw new Error('فشل تحميل مكتبة معالجة PDF بشكل صحيح.');
+      }
+
+      // 2. Use jsdelivr which is often more reliable for .mjs files
+      GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${version}/build/pdf.worker.min.mjs`;
 
       const arrayBuffer = await selectedFile.arrayBuffer();
       
-      // Add CMap and Standard Font support for better Arabic text extraction
-      const pdf = await pdfjsLib.getDocument({
+      // 3. Add CMaps and Standard Fonts with fallbacks
+      const pdf = await getDocument({
         data: arrayBuffer,
-        cMapUrl: `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/cmaps/`,
+        cMapUrl: `https://cdn.jsdelivr.net/npm/pdfjs-dist@${version}/cmaps/`,
         cMapPacked: true,
-        standardFontDataUrl: `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/standard_fonts/`
+        standardFontDataUrl: `https://cdn.jsdelivr.net/npm/pdfjs-dist@${version}/standard_fonts/`
       }).promise;
       
       setPageCount(pdf.numPages);
@@ -49,9 +58,9 @@ export default function PdfPage() {
         setProgress(Math.round((i / pdf.numPages) * 100));
 
         const page = await pdf.getPage(i);
+        // Using a slightly more robust text content request
         const textContent = await page.getTextContent();
         
-        // Better join logic: handle potential missing spaces and RTL
         const pageText = textContent.items
           .map(item => item.str)
           .join(' ')
@@ -62,24 +71,27 @@ export default function PdfPage() {
 
       const trimmedText = fullText.trim();
       if (!trimmedText) {
-        throw new Error('لم يتم العثور على نص قابل للاستخراج في هذا الملف');
+        throw new Error('لم يتم العثور على نص قابل للاستخراج. قد يكون الملف عبارة عن صور فقط.');
       }
       
       setExtractedText(trimmedText);
 
-      // Push to Data Hub
       addEntry('pdf', selectedFile.name, trimmedText, {
         pageCount: pdf.numPages,
         fileSize: selectedFile.size,
       });
     } catch (err) {
-      console.error('PDF extraction error:', err);
-      let errorMsg = 'حدث خطأ أثناء استخراج النص. ';
-      if (err.message?.includes('worker')) errorMsg += 'فشل تحميل معالج PDF.';
-      else if (err.message?.includes('Password')) errorMsg += 'هذا الملف محمي بكلمة مرور.';
-      else errorMsg += 'يرجى المحاولة مرة أخرى أو استخدام ملف آخر.';
+      console.error('Detailed PDF error:', err);
       
-      setExtractedText(errorMsg);
+      // 4. Show more helpful error to the user
+      let errorMessage = 'حدث خطأ: ';
+      if (err.name === 'MissingPDFException') errorMessage += 'الملف غير موجود أو تالف.';
+      else if (err.name === 'InvalidPDFException') errorMessage += 'ملف PDF غير صالح.';
+      else if (err.name === 'PasswordException') errorMessage += 'الملف محمي بكلمة مرور.';
+      else if (err.message?.includes('worker')) errorMessage += 'تعذر تحميل محرك المعالجة (Worker).';
+      else errorMessage += err.message || 'خطأ غير معروف أثناء الاستخراج.';
+      
+      setExtractedText(errorMessage);
     } finally {
       setIsLoading(false);
     }
